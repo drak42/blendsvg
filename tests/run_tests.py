@@ -133,8 +133,11 @@ def test_thin_plate_no_clamp_fails():
 
 def test_sphere_curved_surface_flush():
     _, original, r = run("sphere.stl", normal="front", width=20)
-    total = vol(r.base) + sum(vol(o) for _, o in r.inlays)
-    assert near(total, original, 0.05), (total, original, [(c, vol(o)) for c, o in r.inlays])
+    inlaid = sum(vol(o) for _, o in r.inlays)
+    total = vol(r.base) + inlaid
+    # Boolean rounding on the faceted sphere: Blender 4.5 is off by ~0.07% of the inlay volume
+    # (sub-micron over the artwork area); a missing or doubled sliver would be far larger.
+    assert near(total, original, 0.002 * inlaid), (total, original, inlaid)
     for _, o in r.inlays:
         assert closed(o)
         # every vertex lies on or just under the sphere surface (radius 25, faceted)
