@@ -83,6 +83,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     g.add_argument("--rotate", type=float, default=0.0, help="counter-clockwise degrees")
 
     c = ap.add_argument_group("cut")
+    c.add_argument(
+        "--wrap",
+        action="store_true",
+        help="wrap the artwork over curves like a sticker (keeps its size along the surface) "
+        "instead of projecting it straight on",
+    )
     c.add_argument("--depth", type=float, default=0.6, help="inlay depth in mm (default 0.6)")
     c.add_argument(
         "--min-wall",
@@ -144,6 +150,7 @@ def main(argv: list[str]) -> int:
             depth=args.depth,
             min_wall=args.min_wall,
             clamp_depth=not args.no_clamp,
+            mode="wrap" if args.wrap else "project",
         )
     except (BlendError, RuntimeError) as e:
         print(f"blendsvg: error: {e}", file=sys.stderr)

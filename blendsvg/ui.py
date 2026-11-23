@@ -46,6 +46,24 @@ class BlendSVGSettings(bpy.types.PropertyGroup):
         default=True,
         description="Make the pocket shallower instead of failing when the wall is too thin",
     )
+    mode: EnumProperty(
+        name="Mode",
+        default="wrap",
+        items=[
+            (
+                "wrap",
+                "Wrap",
+                "Wrap the artwork over curves like a paper sticker, keeping its "
+                "size along the surface; depth follows the surface normal",
+            ),
+            (
+                "project",
+                "Project",
+                "Project the artwork straight along the stamp's arrow, like a "
+                "projector; stretches on slopes",
+            ),
+        ],
+    )
     face: EnumProperty(
         name="Face",
         default="top",
@@ -160,7 +178,12 @@ class BLENDSVG_OT_blend(bpy.types.Operator):
         stamp = _active_stamp(context)
         try:
             r = blend(
-                s.target, stamp, depth=s.depth, min_wall=s.min_wall, clamp_depth=s.clamp_depth
+                s.target,
+                stamp,
+                depth=s.depth,
+                min_wall=s.min_wall,
+                clamp_depth=s.clamp_depth,
+                mode=s.mode,
             )
         except BlendError as e:
             self.report({"ERROR"}, str(e))
@@ -256,6 +279,7 @@ class BLENDSVG_PT_panel(bpy.types.Panel):
 
         box = layout.box()
         box.label(text="2. Cut", icon="MOD_BOOLEAN")
+        box.row().prop(s, "mode", expand=True)
         box.prop(s, "depth")
         box.prop(s, "min_wall")
         box.prop(s, "clamp_depth")

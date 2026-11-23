@@ -9,7 +9,7 @@ import bpy
 from mathutils import Matrix, Vector
 from mathutils.bvhtree import BVHTree
 
-from . import meshops
+from . import meshops, wrap
 from .stamp import COLOR_KEY, color_material, stamp_layers
 
 PART_KEY = "blendsvg_part"
@@ -65,6 +65,204 @@ def _sample_points(layers: list[bpy.types.Object], target: int, rng: random.Rand
     return pts
 
 
+def _wall_at(bvh, start: Vector, ray: Vector, reach: float):
+    """Entry point along a ray and the wall thickness behind it (None if no back wall)."""
+    loc, _, _, _ = bvh.ray_cast(start, ray, reach)
+    if loc is None:
+        return None, None
+    s0 = loc.dot(ray)
+    probe = loc
+    for _ in range(8):  # skip coincident/duplicate faces at the entry point
+        probe = probe + ray * 1e-4
+        loc2, _, _, _ = bvh.ray_cast(probe, ray, reach)
+        if loc2 is None:
+            return loc, None
+        if loc2.dot(ray) - s0 > 1e-4:
+            return loc, loc2.dot(ray) - s0
+        probe = loc2
+    return loc, None
+
+
+def _limit_depth(thick, open_hits, depth, min_wall, clamp_depth, warnings):
+    if open_hits:
+        warnings.append("some rays found no back wall (open mesh?); wall check is incomplete.")
+    min_thickness = min(thick) if thick else float("inf")
+    max_depth = min_thickness - min_wall
+    if depth > max_depth:
+        if not clamp_depth or max_depth < 0.1:
+            raise BlendError(
+                f"the wall under the artwork is only {min_thickness:.2f} mm thick; a {depth:g} mm "
+                f"pocket would leave less than the {min_wall:g} mm minimum wall. "
+                "Use a smaller depth or minimum wall, or move the stamp."
+            )
+        warnings.append(
+            f"wall under the artwork is only {min_thickness:.2f} mm thick; depth reduced from "
+            f"{depth:g} mm to {max_depth:.2f} mm to keep a {min_wall:g} mm wall."
+        )
+        depth = max_depth
+    return depth, min_thickness
+
+
+def _cut_project(
+    model,
+    layers,
+    bvh,
+    n,
+    s_max,
+    reach,
+    depth,
+    min_wall,
+    clamp_depth,
+    samples,
+    solver,
+    scratch,
+    copy_of,
+    warnings,
+):
+    ray = -n
+    points = _sample_points(layers, samples, random.Random(0))
+    tops: list[float] = []
+    thick: list[float] = []
+    misses = open_hits = 0
+    for q in points:
+        start = q + n * (s_max + 1.0 - q.dot(n))
+        loc, t = _wall_at(bvh, start, ray, reach)
+        if loc is None:
+            misses += 1
+            continue
+        tops.append(loc.dot(n))
+        if t is None:
+            open_hits += 1
+        else:
+            thick.append(t)
+    if not tops:
+        raise BlendError(
+            "the artwork does not land on the model; move the stamp in front of the surface "
+            "(its arrow points away from the surface)."
+        )
+    if misses:
+        warnings.append(
+            f"{100 * misses / len(points):.0f}% of the artwork hangs off the edge of the surface;"
+            " that part is dropped."
+        )
+    depth, min_thickness = _limit_depth(thick, open_hits, depth, min_wall, clamp_depth, warnings)
+
+    # projection prisms, one per color
+    s_lo = min(tops) - depth  # no pocket point can be deeper; a margin leaves slivers
+    s_hi = min(max(tops) + max(depth, 0.5), s_max + 0.01)
+    prisms: list[tuple[str, bpy.types.Object]] = []
+    for obj in layers:
+        me = obj.data.copy()
+        mw = obj.matrix_world
+        for v in me.vertices:
+            w = mw @ v.co
+            level = s_hi if v.co.z > 0 else s_lo
+            v.co = w - n * w.dot(n) + n * level
+        prisms.append((obj[COLOR_KEY], scratch.object(me, "prism")))
+
+    if len(prisms) == 1:
+        prism_all = prisms[0][1]
+    else:
+        prism_all = copy_of(prisms[0][1])
+        for _, p in prisms[1:]:
+            meshops.boolean(prism_all, p, "UNION")
+
+    # cutter = the prism minus everything deeper than `depth` below the surface. It reaches
+    # above the surface, so cutting the base never has to cancel two coincident surfaces
+    # (which leaves skins on faceted curves).
+    cutter = copy_of(prism_all)
+    shifted = copy_of(model)
+    shifted.data.transform(Matrix.Translation(-n * depth))
+    meshops.boolean(cutter, shifted, "DIFFERENCE", solver)
+
+    base = copy_of(model)
+    meshops.boolean(base, cutter, "DIFFERENCE", solver)
+
+    inlays: list[tuple[str, bpy.types.Object]] = []
+    for color, p in prisms:
+        part_cutter = copy_of(p)
+        meshops.boolean(part_cutter, shifted, "DIFFERENCE", solver)
+        part = copy_of(model)
+        meshops.boolean(part, part_cutter, "INTERSECT", solver)
+        if meshops.volume(part.data) > 1e-6:
+            inlays.append((color, part))
+    if not inlays:
+        raise BlendError("the artwork does not overlap the model surface")
+    return depth, min_thickness, base, inlays
+
+
+def _cut_wrap(
+    model,
+    stamp,
+    layers,
+    bvh,
+    s_max,
+    reach,
+    depth,
+    min_wall,
+    clamp_depth,
+    samples,
+    solver,
+    scratch,
+    copy_of,
+    warnings,
+):
+    try:
+        wrapped, outline, spacing = wrap.map_layers(
+            model.data, stamp, layers, COLOR_KEY, bvh, s_max
+        )
+    except wrap.WrapError as e:
+        raise BlendError(str(e)) from e
+
+    # wall thickness along the inward surface normal under the artwork
+    pts = [(p, nrm) for la in wrapped for p, nrm in zip(la.points, la.normals, strict=True)]
+    step = max(1, len(pts) // samples)
+    thick: list[float] = []
+    open_hits = 0
+    for p, nrm in pts[::step]:
+        _, t = _wall_at(bvh, p + nrm * 0.05, -nrm, reach)
+        if t is None:
+            open_hits += 1
+        else:
+            thick.append(t)
+    depth, min_thickness = _limit_depth(thick, open_hits, depth, min_wall, clamp_depth, warnings)
+
+    lift = max(0.3, spacing * 0.5)  # shell top sits above the surface; the model trims it flush
+    shells: list[tuple[str, bpy.types.Object]] = [
+        (la.color, scratch.object(wrap.build_shell(la, lift, depth), "shell")) for la in wrapped
+    ]
+
+    def cut(target_obj, shell, op):
+        """Boolean with a fallback to the exact solver for self-intersecting shells
+        (tight inside corners where the inward offset folds over)."""
+        before = copy_of(target_obj) if solver == "MANIFOLD" else None
+        meshops.boolean(target_obj, shell, op, solver)
+        ok = meshops.volume(target_obj.data) > 1e-6
+        if op == "DIFFERENCE" and before is not None:
+            ok = ok and meshops.volume(target_obj.data) < meshops.volume(before.data) - 1e-6
+        if not ok and before is not None:
+            target_obj.data = before.data.copy()
+            meshops.boolean(target_obj, shell, op, "EXACT")
+
+    inlays: list[tuple[str, bpy.types.Object]] = []
+    for color, shell in shells:
+        part = copy_of(model)
+        cut(part, shell, "INTERSECT")
+        if meshops.volume(part.data) > 1e-6:
+            inlays.append((color, part))
+    if not inlays:
+        raise BlendError("the artwork does not overlap the model surface")
+
+    # base = model minus the shells themselves (they reach above the surface, so no
+    # coincident surfaces have to cancel)
+    # The base is cut with one shell built from the whole sticker's outline: cutting it with
+    # the per-color shells would leave hairline slivers where neighbouring colors meet.
+    outline_shell = scratch.object(wrap.build_shell(outline, lift, depth), "outline")
+    base = copy_of(model)
+    cut(base, outline_shell, "DIFFERENCE")
+    return depth, min_thickness, base, inlays
+
+
 def blend(
     target: bpy.types.Object,
     stamp: bpy.types.Object,
@@ -74,11 +272,17 @@ def blend(
     clamp_depth: bool = True,
     samples: int = 3000,
     hide_target: bool = True,
+    mode: str = "project",
 ) -> BlendResult:
-    """Project ``stamp`` along its local -Z onto ``target`` and cut it in as inlays.
+    """Cut ``stamp``'s artwork into ``target`` as flush inlays.
 
-    Under the first surface the artwork lands on, a pocket ``depth`` deep (along the projection
-    direction) is removed from a copy of the model. Each SVG fill color becomes one inlay part
+    ``mode="project"`` projects the artwork along the stamp's local -Z onto the first surface it
+    meets, like a projector; the pocket is ``depth`` deep along that direction.
+    ``mode="wrap"`` wraps it over the surface around the point the stamp aims at, like a paper
+    sticker (lengths along the surface are kept); the pocket is ``depth`` deep along the local
+    surface normal everywhere.
+
+    The pocket is removed from a copy of the model. Each SVG fill color becomes one inlay part
     that fills its share of the pocket. The inlays' top faces are the model's own surface, so
     they are perfectly flush, and base + inlays reproduce the original model.
 
@@ -87,6 +291,8 @@ def blend(
     """
     if depth <= 0:
         raise BlendError("depth must be positive")
+    if mode not in ("project", "wrap"):
+        raise BlendError(f"unknown mode {mode!r}")
     if target.type != "MESH":
         raise BlendError(f"{target.name} is not a mesh")
     layers = stamp_layers(stamp)
@@ -114,115 +320,53 @@ def blend(
             "Repair the mesh if the result has holes."
         )
 
-    # --- measure the surface and the wall under the artwork -----------------------------
     verts = [v.co.copy() for v in model_mesh.vertices]
     bvh = BVHTree.FromPolygons(verts, [p.vertices[:] for p in model_mesh.polygons])
     s_vals = [v.dot(n) for v in verts]
     s_max, s_min = max(s_vals), min(s_vals)
-    reach = s_max - s_min + 2.0
-    ray = -n
+    reach = (s_max - s_min) + 2.0 + max(v.length for v in verts) * 2
 
-    points = _sample_points(layers, samples, random.Random(0))
-    tops: list[float] = []
-    thick: list[float] = []
-    misses = open_hits = 0
-    for q in points:
-        start = q + n * (s_max + 1.0 - q.dot(n))
-        loc, _, _, _ = bvh.ray_cast(start, ray, reach)
-        if loc is None:
-            misses += 1
-            continue
-        s0 = loc.dot(n)
-        exit_s = None
-        probe = loc
-        for _ in range(8):  # skip coincident/duplicate faces at the entry point
-            probe = probe + ray * 1e-4
-            loc2, _, _, _ = bvh.ray_cast(probe, ray, reach)
-            if loc2 is None:
-                break
-            if s0 - loc2.dot(n) > 1e-4:
-                exit_s = loc2.dot(n)
-                break
-            probe = loc2
-        tops.append(s0)
-        if exit_s is None:
-            open_hits += 1
-        else:
-            thick.append(s0 - exit_s)
-
-    if not tops:
-        raise BlendError(
-            "the artwork does not land on the model; move the stamp in front of the surface "
-            "(its arrow points away from the surface)."
-        )
-    if misses:
-        warnings.append(
-            f"{100 * misses / len(points):.0f}% of the artwork hangs off the edge of the surface;"
-            " that part is dropped."
-        )
-    if open_hits:
-        warnings.append("some rays found no back wall (open mesh?); wall check is incomplete.")
-
-    min_thickness = min(thick) if thick else float("inf")
-    max_depth = min_thickness - min_wall
-    if depth > max_depth:
-        if not clamp_depth or max_depth < 0.1:
-            raise BlendError(
-                f"the wall under the artwork is only {min_thickness:.2f} mm thick; a {depth:g} mm "
-                f"pocket would leave less than the {min_wall:g} mm minimum wall. "
-                "Use a smaller depth or minimum wall, or move the stamp."
-            )
-        warnings.append(
-            f"wall under the artwork is only {min_thickness:.2f} mm thick; depth reduced from "
-            f"{depth:g} mm to {max_depth:.2f} mm to keep a {min_wall:g} mm wall."
-        )
-        depth = max_depth
-
-    # --- build projection prisms (one per color) ----------------------------------------
-    s_lo = min(tops) - depth  # no pocket point can be deeper; a margin leaves slivers
-    s_hi = min(max(tops) + max(depth, 0.5), s_max + 0.01)
     scratch = meshops.Scratch()
     try:
-        prisms: list[tuple[str, bpy.types.Object]] = []
-        for obj in layers:
-            me = obj.data.copy()
-            mw = obj.matrix_world
-            for v in me.vertices:
-                w = mw @ v.co
-                level = s_hi if v.co.z > 0 else s_lo
-                v.co = w - n * w.dot(n) + n * level
-            prisms.append((obj[COLOR_KEY], scratch.object(me, "prism")))
+        model = scratch.object(model_mesh, "model")
 
         def copy_of(o: bpy.types.Object) -> bpy.types.Object:
             return scratch.object(o.data.copy())
 
-        model = scratch.object(model_mesh, "model")
-        if len(prisms) == 1:
-            prism_all = prisms[0][1]
+        if mode == "wrap":
+            depth, min_thickness, base, inlays = _cut_wrap(
+                model,
+                stamp,
+                layers,
+                bvh,
+                s_max,
+                reach,
+                depth,
+                min_wall,
+                clamp_depth,
+                samples,
+                solver,
+                scratch,
+                copy_of,
+                warnings,
+            )
         else:
-            prism_all = copy_of(prisms[0][1])
-            for _, p in prisms[1:]:
-                meshops.boolean(prism_all, p, "UNION")
-
-        # pocket = model ∩ prism, minus everything deeper than `depth` below the surface
-        pocket = copy_of(model)
-        meshops.boolean(pocket, prism_all, "INTERSECT", solver)
-        shifted = copy_of(model)
-        shifted.data.transform(Matrix.Translation(-n * depth))
-        meshops.boolean(pocket, shifted, "DIFFERENCE", solver)
-        if meshops.volume(pocket.data) < 1e-6:
-            raise BlendError("the artwork does not overlap the model surface")
-
-        base = copy_of(model)
-        meshops.boolean(base, pocket, "DIFFERENCE", solver)
-
-        inlays: list[tuple[str, bpy.types.Object]] = []
-        for color, p in prisms:
-            part = copy_of(pocket)
-            if len(prisms) > 1:
-                meshops.boolean(part, p, "INTERSECT")
-            if meshops.volume(part.data) > 1e-6:
-                inlays.append((color, part))
+            depth, min_thickness, base, inlays = _cut_project(
+                model,
+                layers,
+                bvh,
+                n,
+                s_max,
+                reach,
+                depth,
+                min_wall,
+                clamp_depth,
+                samples,
+                solver,
+                scratch,
+                copy_of,
+                warnings,
+            )
 
         # --- publish results ------------------------------------------------------------
         out = bpy.data.collections.new(f"BlendSVG {target.name}")

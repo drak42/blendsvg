@@ -8,6 +8,7 @@ from __future__ import annotations
 import math
 import sys
 import tempfile
+import time
 import traceback
 import zipfile
 from pathlib import Path
@@ -49,6 +50,9 @@ MODELS = {  # generated, so the repo carries no binary fixtures
     "sphere.stl": lambda: bpy.ops.mesh.primitive_uv_sphere_add(
         radius=25, segments=64, ring_count=32
     ),
+    "cylinder.stl": lambda: bpy.ops.mesh.primitive_cylinder_add(
+        radius=20, depth=60, vertices=128
+    ),  # axis Z, centred at the origin
 }
 
 
@@ -81,11 +85,14 @@ def run(model: str, svg: str = "badge.svg", **kw):
     place_kw = {
         k: kw.pop(k) for k in list(kw) if k in ("normal", "offset", "width", "rotate", "at")
     }
+    t0 = time.perf_counter()
     info = import_svg_stamp(FIX / svg)
     place_stamp(info.stamp, target, place_kw.pop("normal", "top"), **place_kw)
     bpy.context.view_layer.update()
     original = vol(target)
-    return target, original, blend(target, info.stamp, **kw)
+    result = blend(target, info.stamp, **kw)
+    print(f"  {model} {kw.get('mode', 'project')}: {time.perf_counter() - t0:.2f}s")
+    return target, original, result
 
 
 def test_box_three_colors_flush_and_conserved():
@@ -133,6 +140,15 @@ def test_sphere_curved_surface_flush():
         radii = [v.co.length for v in o.data.vertices]
         assert max(radii) <= 25.0 + 1e-3, max(radii)
         assert min(radii) >= 25.0 - 0.6 - 0.15, min(radii)
+    skin = [
+        f
+        for f in r.base.data.polygons
+        if f.center.length > 25.0 - 0.02
+        and f.center.y < -20
+        and abs(f.center.x) < 5
+        and abs(f.center.z) < 2
+    ]
+    assert not skin, f"{len(skin)} base faces cover the inlays"
 
 
 def test_side_face_and_rotation():
@@ -153,6 +169,74 @@ def test_missing_the_model_fails():
         assert "does not land" in str(e)
     else:
         raise AssertionError("expected BlendError")
+
+
+def _art_area():
+    return {"#1e88e5": BLUE, "#ffffff": WHITE, "#e53935": RED}
+
+
+def test_wrap_cylinder_like_a_sticker():
+    _, original, r = run("cylinder.stl", normal="front", width=40, mode="wrap")
+    assert r.depth == 0.6, (r.depth, r.warnings)
+    angles, radii = [], []
+    for _, o in r.inlays:
+        assert closed(o), o.name
+        for v in o.data.vertices:
+            radii.append(math.hypot(v.co.x, v.co.y))
+            angles.append(math.atan2(v.co.x, -v.co.y))  # 0 at the front (-Y)
+    # flush: nothing above the surface; floor 0.6 mm below it (faceting sag ~0.01 mm)
+    assert max(radii) <= 20.0 + 1e-3, max(radii)
+    assert min(radii) >= 20.0 - 0.6 - 0.03, min(radii)
+    # wrapped: 40 mm of sticker covers 40 / 20 = 2 radians of arc, centred on the front
+    span = max(angles) - min(angles)
+    assert near(span, 2.0, 0.03), span
+    assert near(max(angles), -min(angles), 0.02)
+    # area preserved: shell volume = area * depth * (1 - depth / 2R)
+    for color, area in _art_area().items():
+        expect = area * 0.6 * (1 - 0.6 / 40)
+        got = vol(dict(r.inlays)[color])
+        assert near(got, expect, expect * 0.02), (color, got, expect)
+    assert near(vol(r.base) + sum(vol(o) for _, o in r.inlays), original, original * 1e-4)
+    assert closed(r.base)
+    # no skin left on the base over the inlays (the base must be open where the sticker is)
+    skin = [
+        f
+        for f in r.base.data.polygons
+        if math.hypot(f.center.x, f.center.y) > 20.0 - 0.01
+        and abs(f.center.z) < 6
+        and abs(math.atan2(f.center.x, -f.center.y)) < 0.8
+    ]
+    assert not skin, f"{len(skin)} base faces cover the inlays"
+
+
+def test_wrap_flat_matches_project():
+    _, _, flat = run("box.stl", mode="wrap")
+    for color, area in _art_area().items():
+        got = vol(dict(flat.inlays)[color])
+        assert near(got, area * 0.6, area * 0.6 * 0.01), (color, got)
+    zs = [v.co.z for _, o in flat.inlays for v in o.data.vertices]
+    assert near(max(zs), 10.0, 1e-4) and near(min(zs), 9.4, 1e-4), (min(zs), max(zs))
+
+
+def test_wrap_sphere():
+    _, original, r = run("sphere.stl", normal="front", width=20, mode="wrap")
+    for _, o in r.inlays:
+        assert closed(o), o.name
+        radii = [v.co.length for v in o.data.vertices]
+        assert max(radii) <= 25.0 + 1e-3, max(radii)
+        assert min(radii) >= 25.0 - 0.6 - 0.15, min(radii)
+    assert near(vol(r.base) + sum(vol(o) for _, o in r.inlays), original, original * 1e-4)
+    for color, area in _art_area().items():  # 20 mm on r=25: a few % distortion at most
+        scale = (20 / 40) ** 2
+        got = vol(dict(r.inlays)[color])
+        assert near(got, area * scale * 0.6, area * scale * 0.6 * 0.06), (color, got)
+
+
+def test_wrap_thin_wall_clamped():
+    _, _, r = run("plate.stl", width=30, mode="wrap")
+    assert near(r.depth, 0.4, 1e-3), r.depth
+    bottom = min(v.co.z for _, o in r.inlays for v in o.data.vertices)
+    assert near(bottom, 0.8, 1e-3), bottom
 
 
 def test_exports():
