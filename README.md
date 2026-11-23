@@ -22,7 +22,7 @@ or headless from the command line.
 
 There are two modes:
 
-- **Wrap** (default in the add-on, `--wrap` on the command line): works like a paper sticker.
+- **Wrap** (the default): works like a paper sticker.
   The surface around the point the stamp aims at gets "sticker coordinates", which are the
   distance and direction from that point measured *along the surface* (a discrete
   exponential map). Each point of the artwork is placed where its coordinates match. On
@@ -30,7 +30,7 @@ There are two modes:
   (spheres) there is some distortion away from the centre, just as a real sticker would
   wrinkle. The artwork becomes a curved shell reaching `depth` below the surface along the
   local normal, and `inlay = model ∩ shell`.
-- **Project** (the command-line default): the artwork is projected straight along the
+- **Project** (`--project`, or the switch in the panel): the artwork is projected straight along the
   stamp's arrow, like a projector. It stretches on slopes and cannot reach around a curve,
   and the depth is measured along the projection direction.
 
@@ -43,7 +43,8 @@ reduced. Use `--no-clamp` to fail instead.
 
 ```bash
 bin/blendsvg model.stl logo.svg                      # top face, SVG's physical size
-bin/blendsvg bottle.stl label.svg --wrap --face front --width 60   # wrap around the bottle
+bin/blendsvg bottle.stl label.svg --face front --width 60    # wraps around the bottle
+bin/blendsvg box.stl logo.svg --project                         # straight projection
 bin/blendsvg model.stl logo.svg --face front --width 30 --offset 0 5 --rotate 15
 bin/blendsvg model.stl logo.svg --depth 1.0 --min-wall 1.2 --stl -o out/model.3mf
 bin/blendsvg --help
