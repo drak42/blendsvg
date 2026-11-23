@@ -133,7 +133,8 @@ def test_thin_plate_no_clamp_fails():
 
 def test_sphere_curved_surface_flush():
     _, original, r = run("sphere.stl", normal="front", width=20)
-    assert near(vol(r.base) + sum(vol(o) for _, o in r.inlays), original, 0.05)
+    total = vol(r.base) + sum(vol(o) for _, o in r.inlays)
+    assert near(total, original, 0.05), (total, original, [(c, vol(o)) for c, o in r.inlays])
     for _, o in r.inlays:
         assert closed(o)
         # every vertex lies on or just under the sphere surface (radius 25, faceted)
