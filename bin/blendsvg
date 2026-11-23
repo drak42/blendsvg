@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Run blendsvg headless with Blender. Set BLENDER to use a specific Blender binary.
+set -euo pipefail
+here="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+exec "${BLENDER:-blender}" -b --factory-startup -noaudio --python-exit-code 3 \
+  -P "$here/blendsvg_cli.py" -- "$@"

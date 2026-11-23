@@ -1,0 +1,18 @@
+schema_version = "1.0.0"
+
+id = "blendsvg"
+version = "0.1.0"
+name = "BlendSVG"
+tagline = "Inlay SVG artwork flush into a mesh for multi-color printing"
+maintainer = "drak42"
+type = "add-on"
+website = "https://github.com/drak42/blendsvg"
+tags = ["Import-Export", "Mesh", "3D View"]
+
+# Needs the Manifold boolean solver (Blender 4.5+).
+blender_version_min = "4.5.0"
+
+license = ["SPDX:GPL-3.0-or-later"]
+
+[permissions]
+files = "Import SVG artwork and export 3MF/STL parts"

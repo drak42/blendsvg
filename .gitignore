@@ -221,3 +221,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# blendsvg
+dist/
+*.blend1
+*-blend.3mf

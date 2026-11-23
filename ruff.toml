@@ -1,0 +1,7 @@
+# Lint config only: the code runs inside Blender's bundled Python (bpy, mathutils, bmesh).
+line-length = 100
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = ["F722", "F821"]  # Blender property annotations (name: FloatProperty(...))
