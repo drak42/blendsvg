@@ -15,6 +15,8 @@ It works like a sticker that sits inside the surface instead of on top of it.
   already aligned. Assign a filament to each part in PrusaSlicer, OrcaSlicer or Bambu Studio.
   STL export is also available.
 
+**New here? Start with the [user guide](docs/user-guide.md).**
+
 It runs in [Blender](https://www.blender.org/) (4.5 or newer) as an add-on with a sidebar panel,
 or headless from the command line.
 
@@ -67,8 +69,9 @@ in Blender go to *Edit › Preferences › Get Extensions › Install from Disk�
 Then open *3D View › Sidebar (N) › BlendSVG*:
 
 1. **Model:** pick the mesh to decorate.
-2. **Stamp:** optionally snap the 3D cursor to the surface first (Shift + right-drag, with
-   the cursor tool's orientation set to *Surface Project*). Then click **Import SVG Stamp**.
+2. **Stamp:** optionally snap the 3D cursor to the surface first (Shift + right-drag,
+   with the Cursor tool's *Surface Project* on and *Orientation* set to *Geometry*). Then
+   click **Import SVG Stamp**.
    The stamp is created at the cursor, and its arrow points away from the surface. Move,
    rotate and scale it like any object, or use **Align to Face** / **Stamp to Cursor**.
 3. **Cut:** choose **Wrap** (sticker) or **Project**, set the depth and minimum wall, then
