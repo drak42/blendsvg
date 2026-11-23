@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uvx ruff check .
+      - run: uvx ruff format --check .
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Oldest supported (blender_version_min) and the current release series.
+        blender: ["4.5.16", "5.3.0"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Blender ${{ matrix.blender }}
+        run: |
+          series="${BLENDER_VERSION%.*}"
+          url="https://download.blender.org/release/Blender${series}/blender-${BLENDER_VERSION}-linux-x64.tar.xz"
+          sudo apt-get update -qq && sudo apt-get install -y -qq libxi6 libxkbcommon0 libsm6 libgl1 libegl1
+          curl -sSfL "$url" | tar -xJ -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/blender-${BLENDER_VERSION}-linux-x64" >> "$GITHUB_PATH"
+        env:
+          BLENDER_VERSION: ${{ matrix.blender }}
+      - run: blender --version
+      - run: blender -b --factory-startup -noaudio --python-exit-code 3 -P tests/run_tests.py
+      - name: Build extension
+        run: mkdir -p dist && blender --command extension build --source-dir blendsvg --output-dir dist

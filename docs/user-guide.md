@@ -34,8 +34,8 @@ Shapes painted on top hide the shapes underneath, exactly as the SVG looks on sc
 
 ## 2. Install the add-on
 
-1. Get `blendsvg-0.1.0.zip` (or build it: `blender --command extension build
-   --source-dir blendsvg --output-dir dist`).
+1. Download `blendsvg-<version>.zip` from the
+   [latest release](https://github.com/drak42/blendsvg/releases/latest). Don't unzip it.
 2. In Blender go to *Edit › Preferences › Get Extensions*, open the **⌄** menu in the top
    right, and choose **Install from Disk…**. Pick the zip.
 3. Close Preferences. In the 3D viewport press **N** to open the sidebar and click the
@@ -128,6 +128,9 @@ they stay aligned.
 ## 5. Command line (optional)
 
 You can do the same without opening Blender. That's handy for batches.
+
+It runs from a copy of the repository (`git clone https://github.com/drak42/blendsvg.git`)
+and needs `blender` on your `PATH`.
 
 ```bash
 bin/blendsvg mug.stl logo.svg --face front --width 50

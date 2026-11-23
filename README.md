@@ -1,5 +1,7 @@
 # blendsvg
 
+[![CI](https://github.com/drak42/blendsvg/actions/workflows/ci.yml/badge.svg)](https://github.com/drak42/blendsvg/actions/workflows/ci.yml)
+
 Cut SVG artwork into the surface of a 3D model as **flush inlays** for multi-color 3D printing.
 It works like a sticker that sits inside the surface instead of on top of it.
 
@@ -16,6 +18,10 @@ It works like a sticker that sits inside the surface instead of on top of it.
   STL export is also available.
 
 **New here? Start with the [user guide](docs/user-guide.md).**
+
+> **Status: early release (0.1).** The geometry is covered by automated tests, but it has not
+> seen much real-world printing yet. Please [open an issue](https://github.com/drak42/blendsvg/issues)
+> with the model and SVG if something goes wrong.
 
 It runs in [Blender](https://www.blender.org/) (4.5 or newer) as an add-on with a sidebar panel,
 or headless from the command line.
@@ -43,7 +49,11 @@ reduced. Use `--no-clamp` to fail instead.
 
 ## Command line
 
+The command line tool runs from a clone of this repository and needs `blender` on your
+`PATH` (Blender itself doesn't have to be open):
+
 ```bash
+git clone https://github.com/drak42/blendsvg.git && cd blendsvg
 bin/blendsvg model.stl logo.svg                      # top face, SVG's physical size
 bin/blendsvg bottle.stl label.svg --face front --width 60    # wraps around the bottle
 bin/blendsvg box.stl logo.svg --project                         # straight projection
@@ -61,9 +71,10 @@ Models can be STL, OBJ or PLY in millimetres. `--face` is one of
 
 ## Blender add-on
 
-Install: `blender --command extension build --source-dir blendsvg --output-dir dist`, then
-in Blender go to *Edit › Preferences › Get Extensions › Install from Disk…* and pick
-`dist/blendsvg-0.1.0.zip`. To develop, symlink the `blendsvg/` folder into your extensions
+Install: download `blendsvg-<version>.zip` from the
+[latest release](https://github.com/drak42/blendsvg/releases/latest), then in Blender go to
+*Edit › Preferences › Get Extensions › Install from Disk…* and pick the zip. To build it
+yourself: `blender --command extension build --source-dir blendsvg --output-dir dist`. To develop, symlink the `blendsvg/` folder into your extensions
 `user_default` directory instead.
 
 Then open *3D View › Sidebar (N) › BlendSVG*:
@@ -101,3 +112,13 @@ uvx ruff check . && uvx ruff format --check .
 Layout: `blendsvg/` is the extension package (`stamp.py` SVG → stamp, `place.py` positioning,
 `blend.py` measure + cut, `wrap.py` sticker mapping, `export.py` 3MF/STL, `ui.py` panel and operators). `blendsvg_cli.py`
 is the headless entry point and `bin/blendsvg` wraps it.
+
+## Contributing
+
+Bug reports and pull requests are welcome. Please include the model and SVG (or a small
+example that shows the problem) and your Blender version. Run the tests and ruff before
+opening a pull request (see Development above).
+
+## License
+
+[GPL-3.0-or-later](LICENSE). Blender add-ons use Blender's GPL Python API, so they are GPL too.
