@@ -75,6 +75,11 @@ it in the add-on. Set `BLENDER=/path/to/blender` to use a specific Blender build
 Models can be STL, OBJ or PLY in millimetres. `--face` is one of
 `top bottom front back left right`, or pass any direction with `--normal X Y Z`.
 
+To slice the 3MF from a script and send it to a Klipper or OctoPrint printer, use
+[BatchSlicer](https://github.com/drak42/batch_slicer), a companion project. Give it one
+filament per part, the base first (see its
+[multi-colour section](https://github.com/drak42/batch_slicer#designing-your-own-multi-colour-parts)).
+
 ## Blender add-on
 
 Install: download `blendsvg-<version>.zip` from the
