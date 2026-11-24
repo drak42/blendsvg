@@ -51,7 +51,13 @@ def color_material(hex_color: str) -> bpy.types.Material:
         mat = bpy.data.materials.new(name)
         rgb = [int(hex_color[i : i + 2], 16) / 255 for i in (1, 3, 5)]
         lin = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in rgb]
-        mat.diffuse_color = (*lin, 1.0)
+        mat.diffuse_color = (*lin, 1.0)  # Solid viewport
+        # Material Preview and renders use the shader nodes (always on from Blender 5.0)
+        if not mat.use_nodes:
+            mat.use_nodes = True
+        bsdf = next((n for n in mat.node_tree.nodes if n.type == "BSDF_PRINCIPLED"), None)
+        if bsdf is not None:
+            bsdf.inputs["Base Color"].default_value = (*lin, 1.0)
     return mat
 
 

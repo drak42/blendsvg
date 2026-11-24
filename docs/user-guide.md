@@ -181,6 +181,10 @@ real sticker can't lie perfectly flat on a ball. Smaller stickers distort less.
 **The design is mirrored or upside down.** Rotate the stamp (**R**, then **Z**) or flip its
 arrow by rotating it 180° around its X axis, so it points away from the surface.
 
+**The inlays look speckled in the viewport.** That is the viewport, not the model: with
+models in millimetres the default clip distance is too small for the depth buffer. In the
+sidebar's **View** tab, set **Clip Start** to 1 mm. Renders and exports are not affected.
+
 **Colors bleed or look thin.** Increase **Depth** (try 0.8–1.0 mm) and check that the inlay
 parts have the right filaments in the slicer.
 

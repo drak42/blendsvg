@@ -6,6 +6,8 @@
 Cut SVG artwork into the surface of a 3D model as **flush inlays** for multi-color 3D printing.
 It works like a sticker that sits inside the surface instead of on top of it.
 
+![An SVG of mountains and a sun becomes three-color inlays wrapped around a mug](docs/images/hero.png)
+
 - **Wraps like a sticker:** the artwork bends over curved surfaces and keeps its size along the
   surface, like a paper sticker on a bottle. You can also project it straight on.
 - **Flush:** each inlay's top face *is* the model's surface, so the result is perfectly smooth,
@@ -29,6 +31,8 @@ It runs in [Blender](https://www.blender.org/) (4.5 or newer) as an add-on with 
 or headless from the command line.
 
 ## How it works
+
+![Exploded view: each color of the artwork is a separate part that sits flush in a matching pocket in the mug](docs/images/how-it-works.gif)
 
 There are two modes:
 

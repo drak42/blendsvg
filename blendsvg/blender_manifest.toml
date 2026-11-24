@@ -13,6 +13,7 @@ tags = ["Import-Export", "Mesh", "3D View"]
 blender_version_min = "4.5.0"
 
 license = ["SPDX:GPL-3.0-or-later"]
+copyright = ["2026 drak42"]
 
 [permissions]
 files = "Import SVG artwork and export 3MF/STL parts"

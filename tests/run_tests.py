@@ -332,6 +332,15 @@ def test_wrap_refine_cad_slivers():
         bm.free()
 
 
+def test_inlay_colors_render():
+    # Material Preview and renders read the shader nodes, not the Solid-mode color
+    _, _, r = run("box.stl")
+    for color, o in r.inlays:
+        mat = o.data.materials[0]
+        bsdf = next(n for n in mat.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+        assert tuple(bsdf.inputs["Base Color"].default_value) == tuple(mat.diffuse_color), color
+
+
 def test_exports():
     _, _, r = run("box.stl")
     with tempfile.TemporaryDirectory() as d:
