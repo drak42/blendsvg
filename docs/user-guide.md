@@ -183,3 +183,8 @@ arrow by rotating it 180° around its X axis, so it points away from the surface
 
 **Colors bleed or look thin.** Increase **Depth** (try 0.8–1.0 mm) and check that the inlay
 parts have the right filaments in the slicer.
+
+---
+
+BlendSVG is free and open source. If it makes your prints better, you can
+[buy me a coffee](https://buymeacoffee.com/drak42) ☕.

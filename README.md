@@ -1,6 +1,7 @@
 # blendsvg
 
 [![CI](https://github.com/drak42/blendsvg/actions/workflows/ci.yml/badge.svg)](https://github.com/drak42/blendsvg/actions/workflows/ci.yml)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/drak42)
 
 Cut SVG artwork into the surface of a 3D model as **flush inlays** for multi-color 3D printing.
 It works like a sticker that sits inside the surface instead of on top of it.
@@ -119,6 +120,12 @@ is the headless entry point and `bin/blendsvg` wraps it.
 Bug reports and pull requests are welcome. Please include the model and SVG (or a small
 example that shows the problem) and your Blender version. Run the tests and ruff before
 opening a pull request (see Development above).
+
+## Support
+
+BlendSVG is free and open source. If it makes your prints better, you can
+[buy me a coffee](https://buymeacoffee.com/drak42) ☕. Bug reports, ideas and pull requests are
+just as welcome (see Contributing above).
 
 ## License
 
