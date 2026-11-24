@@ -15,6 +15,7 @@ _CONTENT_TYPES = """<?xml version="1.0" encoding="UTF-8"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
  <Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/>
+ <Default Extension="config" ContentType="application/xml"/>
 </Types>
 """
 _RELS = """<?xml version="1.0" encoding="UTF-8"?>
@@ -53,8 +54,9 @@ def write_3mf(
 ) -> Path:
     """One build object whose components are the given parts (base + inlays).
 
-    Slicers load it as a single object with one part per mesh, already aligned, so each
-    part can be assigned its own filament.
+    Slicers load it as a single object with one part per mesh, already aligned. Part N
+    (base first) is set to filament N in OrcaSlicer's part settings, so each color prints
+    from its own filament slot without assigning them by hand.
     """
     path = Path(path)
     objects = list(objects)
@@ -87,7 +89,28 @@ def write_3mf(
         z.writestr("[Content_Types].xml", _CONTENT_TYPES)
         z.writestr("_rels/.rels", _RELS)
         z.writestr("3D/3dmodel.model", model)
+        z.writestr("Metadata/model_settings.config", _model_settings(group_id, name, objects))
     return path
+
+
+def _model_settings(group_id: int, name: str, objects: list[bpy.types.Object]) -> str:
+    """OrcaSlicer's per-part settings: part ids are the component object ids."""
+
+    def meta(key: str, value: str) -> str:
+        return f'<metadata key="{key}" value={quoteattr(value)}/>'
+
+    parts = "".join(
+        f'<part id="{i + 2}" subtype="normal_part">'
+        + meta("name", obj.name)
+        + meta("extruder", str(i + 1))
+        + "</part>"
+        for i, obj in enumerate(objects)
+    )
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n<config>'
+        f'<object id="{group_id}">{meta("name", name)}{meta("extruder", "1")}{parts}</object>'
+        "</config>\n"
+    )
 
 
 def write_stl(path: str | Path, obj: bpy.types.Object) -> Path:

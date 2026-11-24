@@ -113,12 +113,15 @@ In the file dialog's side panel, choose the format:
 
 ## 4. Print it
 
-1. Open the `.3mf` in your slicer (PrusaSlicer, OrcaSlicer, Bambu Studio…). The base and
-   inlays come in as one object made of several parts. If the slicer asks whether to load
-   the file as a single object with multiple parts, answer **Yes**.
-2. Assign a filament to each part: the base color to the base, and each inlay its color
-   (the part names include the color code).
-3. Slice and print as usual.
+1. Open the `.3mf` in your slicer (OrcaSlicer, Bambu Studio…). The base and inlays come in
+   as one object made of several parts. If the slicer asks whether to load the file as a
+   single object with multiple parts, answer **Yes**.
+2. Check the filaments. In OrcaSlicer the base is already on filament 1 and the inlays on
+   filaments 2, 3, … in order, so put the matching colors in those slots (or change a part's
+   filament). In other slicers, assign a filament to each part yourself: the base color to
+   the base, and each inlay its color (the part names include the color code).
+3. Slice and print as usual. Inlays on a side wall change color on every layer they cover,
+   so expect many filament changes and a longer print than the model alone.
 
 Using STL files instead? Load all of them together and keep them as parts of one object, so
 they stay aligned.

@@ -14,7 +14,8 @@ It works like a sticker that sits inside the surface instead of on top of it.
 - **Multi-color:** each SVG fill color becomes its own inlay part. Shapes painted later hide
   the ones underneath, the same way the SVG renders.
 - **Slicer-ready:** the output is a 3MF where the base and the inlays are parts of one object,
-  already aligned. Assign a filament to each part in PrusaSlicer, OrcaSlicer or Bambu Studio.
+  already aligned. In OrcaSlicer each part is already on its own filament (base on 1, inlays
+  on 2, 3, …); in other slicers, assign a filament to each part.
   STL export is also available.
 
 **New here? Start with the [user guide](docs/user-guide.md).**

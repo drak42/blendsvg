@@ -6,6 +6,7 @@ Minimal test runner (pytest isn't available in Blender's Python). Exits non-zero
 from __future__ import annotations
 
 import math
+import re
 import sys
 import tempfile
 import time
@@ -337,7 +338,16 @@ def test_exports():
         p = write_3mf(Path(d) / "x.3mf", r.parts)
         with zipfile.ZipFile(p) as z:
             model = z.read("3D/3dmodel.model").decode()
+            settings = z.read("Metadata/model_settings.config").decode()
         assert model.count("<component ") == 4 and 'displaycolor="#E53935"' in model
+        # OrcaSlicer part settings: base on filament 1, each inlay on its own filament
+        names = [o.name for o in r.parts]
+        for i, name in enumerate(names):
+            assert re.search(
+                rf'<part id="{i + 2}"[^>]*><metadata key="name" value="{re.escape(name)}"/>'
+                rf'<metadata key="extruder" value="{i + 1}"/>',
+                settings,
+            ), (name, settings)
         s = write_stl(Path(d) / "x.stl", r.base)
         tris = len([t for t in bmesh_tris(r.base)])
         assert s.stat().st_size == 84 + 50 * tris
