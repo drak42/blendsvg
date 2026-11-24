@@ -142,6 +142,29 @@ def triangulate_fine(verts2d, tris, spacing: float):
     return out_pts, out_tris, _boundary_edges(out_tris)
 
 
+def _split_at_midpoints(bm, face, mids: set) -> None:
+    """Triangulate a triangle whose edges gained midpoints, cutting only from a midpoint.
+
+    A midpoint lies on the line between its two neighbours, so a general triangulator may
+    join those neighbours and leave a zero-area triangle that restores the split edge;
+    refinement then never converges. Cutting from a midpoint to the corner after its next
+    neighbour never does that.
+    """
+    stack = [face]
+    while stack:
+        f = stack.pop()
+        if not f.is_valid or len(f.verts) <= 3:
+            continue
+        vs = list(f.verts)
+        n = len(vs)
+        i = next((i for i in range(n) if vs[i] in mids and vs[(i + 1) % n] not in mids), None)
+        if i is None:  # not expected for a refined triangle; keep the old behaviour
+            bmesh.ops.triangulate(bm, faces=[f])
+            continue
+        new, _ = bmesh.utils.face_split(f, vs[i], vs[(i + 2) % n])
+        stack += [f, new]
+
+
 def _segment_distance(p: Vector, edge) -> float:
     a, b = edge.verts[0].co, edge.verts[1].co
     ab = b - a
@@ -193,17 +216,33 @@ class SurfaceMap:
 
     @staticmethod
     def _refine(bm, anchor: Vector, radius: float, spacing: float) -> None:
+        """Longest-edge bisection near the anchor until edges are at most ``spacing``.
+
+        Splitting only each triangle's longest edge keeps triangles well shaped; splitting
+        every long edge turns the long thin triangles of CAD meshes into piles of slivers.
+        """
         reach = radius + 2 * spacing
-        for _ in range(12):
-            long_edges = [
-                e
-                for e in bm.edges
-                if e.calc_length() > spacing and _segment_distance(anchor, e) < reach
-            ]
-            if not long_edges:
+
+        def longest_edges(faces):
+            out = set()
+            for f in faces:
+                if not f.is_valid:
+                    continue
+                e = max(f.edges, key=lambda e: e.calc_length())
+                if e.calc_length() > spacing and _segment_distance(anchor, e) < reach:
+                    out.add(e)
+            return list(out)
+
+        edges = longest_edges(bm.faces)
+        for _ in range(40):
+            if not edges:
                 return
-            bmesh.ops.subdivide_edges(bm, edges=long_edges, cuts=1, use_grid_fill=False)
-            bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 3])
+            split = bmesh.ops.subdivide_edges(bm, edges=edges, cuts=1, use_grid_fill=False)
+            mids = {v for v in split["geom_inner"] if isinstance(v, bmesh.types.BMVert)}
+            for f in {f for v in mids for f in v.link_faces}:
+                _split_at_midpoints(bm, f, mids)
+            # Only faces that changed this round can still have a long edge.
+            edges = longest_edges({f for v in mids for f in v.link_faces})
 
     @staticmethod
     def _exp_map(bm, seed_face, p0: Vector, n0: Vector, e1: Vector, radius: float):
