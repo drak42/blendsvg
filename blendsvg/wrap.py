@@ -142,27 +142,32 @@ def triangulate_fine(verts2d, tris, spacing: float):
     return out_pts, out_tris, _boundary_edges(out_tris)
 
 
-def _split_at_midpoints(bm, face, mids: set) -> None:
-    """Triangulate a triangle whose edges gained midpoints, cutting only from a midpoint.
+_FLAT_COS = math.cos(math.radians(0.5))
 
-    A midpoint lies on the line between its two neighbours, so a general triangulator may
-    join those neighbours and leave a zero-area triangle that restores the split edge;
-    refinement then never converges. Cutting from a midpoint to the corner after its next
-    neighbour never does that.
+
+_edge_len = bmesh.types.BMEdge.calc_length
+
+
+def _longest_edge(face):
+    return max(face.edges, key=_edge_len)
+
+
+def _bisect(face, m, mids: set) -> None:
+    """Cut a triangle whose longest edge was split at ``m``, Rivara style.
+
+    ``m`` is joined to the opposite corner, then each half's other midpoint (if its edge
+    was split too) is joined to ``m``, so every cut runs from a midpoint across the
+    triangle and shapes stay bounded.
     """
-    stack = [face]
-    while stack:
-        f = stack.pop()
-        if not f.is_valid or len(f.verts) <= 3:
-            continue
-        vs = list(f.verts)
-        n = len(vs)
-        i = next((i for i in range(n) if vs[i] in mids and vs[(i + 1) % n] not in mids), None)
-        if i is None:  # not expected for a refined triangle; keep the old behaviour
-            bmesh.ops.triangulate(bm, faces=[f])
-            continue
-        new, _ = bmesh.utils.face_split(f, vs[i], vs[(i + 2) % n])
-        stack += [f, new]
+    vs = list(face.verts)
+    i = vs.index(m)
+    beside = (vs[i - 1], vs[(i + 1) % len(vs)])
+    c = next(v for v in vs if v not in mids and v not in beside)
+    new, _ = bmesh.utils.face_split(face, m, c)
+    for half in (face, new):
+        if len(half.verts) > 3:
+            x = next(v for v in half.verts if v in mids and v != m)
+            bmesh.utils.face_split(half, x, m)
 
 
 def _segment_distance(p: Vector, edge) -> float:
@@ -223,26 +228,52 @@ class SurfaceMap:
         """
         reach = radius + 2 * spacing
 
-        def longest_edges(faces):
+        def long_edges(faces):
             out = set()
             for f in faces:
-                if not f.is_valid:
-                    continue
-                e = max(f.edges, key=lambda e: e.calc_length())
-                if e.calc_length() > spacing and _segment_distance(anchor, e) < reach:
-                    out.add(e)
-            return list(out)
+                if f.is_valid:
+                    e = _longest_edge(f)
+                    if _edge_len(e) > spacing and _segment_distance(anchor, e) < reach:
+                        out.add(e)
+            return out
 
-        edges = longest_edges(bm.faces)
-        for _ in range(40):
+        edges = long_edges(bm.faces)
+        for _ in range(60):
             if not edges:
                 return
-            split = bmesh.ops.subdivide_edges(bm, edges=edges, cuts=1, use_grid_fill=False)
-            mids = {v for v in split["geom_inner"] if isinstance(v, bmesh.types.BMVert)}
-            for f in {f for v in mids for f in v.link_faces}:
-                _split_at_midpoints(bm, f, mids)
+            # A triangle next to a split edge must have its own longest edge split too, or
+            # its cut would run from a short side and leave a sliver (Rivara's LEPP).
+            longest = {}
+            todo = list(edges)
+            while todo:
+                for f in todo.pop().link_faces:
+                    if f not in longest:
+                        e = longest[f] = _longest_edge(f)
+                        if e not in edges:
+                            edges.add(e)
+                            todo.append(e)
+            # bmesh.ops.subdivide_edges invalidates every vertex reference, so split edge by
+            # edge with bmesh.utils, which keeps the faces recorded here valid.
+            mid_of = {e: bmesh.utils.edge_split(e, e.verts[0], 0.5)[1] for e in edges}
+            mids = set(mid_of.values())
+            for f, e in longest.items():
+                _bisect(f, mid_of[e], mids)
+            changed = {f for v in mids for f in v.link_faces}
+            # Bisection keeps the shape of the triangles it starts from, so the slivers of a
+            # CAD mesh stay slivers; flipping edges between coplanar faces repairs them
+            # without moving the surface.
+            for f in changed:
+                f.normal_update()
+            flat = [
+                e
+                for e in {e for f in changed for e in f.edges}
+                if len(e.link_faces) == 2
+                and e.link_faces[0].normal.dot(e.link_faces[1].normal) > _FLAT_COS
+            ]
+            if flat:
+                bmesh.ops.beautify_fill(bm, faces=list(changed), edges=flat)
             # Only faces that changed this round can still have a long edge.
-            edges = longest_edges({f for v in mids for f in v.link_faces})
+            edges = long_edges({f for v in mids for f in v.link_faces})
 
     @staticmethod
     def _exp_map(bm, seed_face, p0: Vector, n0: Vector, e1: Vector, radius: float):
