@@ -16,6 +16,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20  # a refinement hang would otherwise run for 6 hours
     strategy:
       fail-fast: false
       matrix:
@@ -23,12 +24,36 @@ jobs:
         blender: ["4.5.16", "5.3.0"]
     steps:
       - uses: actions/checkout@v4
-      - name: Install Blender ${{ matrix.blender }}
+      - name: Cache Blender ${{ matrix.blender }}
+        id: cache-blender
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/blender-${{ matrix.blender }}-linux-x64
+          key: blender-${{ matrix.blender }}-linux-x64
+      - name: Download Blender ${{ matrix.blender }}
+        if: steps.cache-blender.outputs.cache-hit != 'true'
+        # download.blender.org sometimes answers 403 to CI runners: retry, then try mirrors.
         run: |
           series="${BLENDER_VERSION%.*}"
-          url="https://download.blender.org/release/Blender${series}/blender-${BLENDER_VERSION}-linux-x64.tar.xz"
+          file="blender-${BLENDER_VERSION}-linux-x64.tar.xz"
+          for base in \
+            https://download.blender.org/release \
+            https://mirrors.ocf.berkeley.edu/blender/release \
+            https://ftp.halifax.rwth-aachen.de/blender/release; do
+            if curl -sSfL --retry 3 --retry-delay 10 --retry-all-errors \
+              -o "$RUNNER_TEMP/$file" "$base/Blender${series}/$file"; then
+              break
+            fi
+            echo "::warning::download from $base failed"
+            rm -f "$RUNNER_TEMP/$file"
+          done
+          tar -xJf "$RUNNER_TEMP/$file" -C "$RUNNER_TEMP"
+          rm "$RUNNER_TEMP/$file"
+        env:
+          BLENDER_VERSION: ${{ matrix.blender }}
+      - name: Install Blender ${{ matrix.blender }}
+        run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq libxi6 libxkbcommon0 libsm6 libgl1 libegl1
-          curl -sSfL "$url" | tar -xJ -C "$RUNNER_TEMP"
           echo "$RUNNER_TEMP/blender-${BLENDER_VERSION}-linux-x64" >> "$GITHUB_PATH"
         env:
           BLENDER_VERSION: ${{ matrix.blender }}

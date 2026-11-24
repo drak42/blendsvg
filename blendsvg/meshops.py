@@ -89,6 +89,24 @@ def clean_copy(mesh: bpy.types.Mesh, matrix: Matrix, merge: float = 1e-5) -> bpy
     return me
 
 
+def tidy(mesh: bpy.types.Mesh, dist: float = 1e-4) -> None:
+    """Collapse the sub-micron edges and needle faces booleans leave behind.
+
+    They are harmless in Blender, but STL stores 32-bit floats and slicers weld vertices and
+    drop degenerate triangles on import, which opens holes in an otherwise closed part.
+    Skipped if it would leave a closed mesh open.
+    """
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    was_closed = bool(bm.edges) and all(e.is_manifold for e in bm.edges)
+    bmesh.ops.dissolve_degenerate(bm, dist=dist, edges=bm.edges[:])
+    bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 3])
+    if not was_closed or (bm.edges and all(e.is_manifold for e in bm.edges)):
+        bm.to_mesh(mesh)
+        mesh.update()
+    bm.free()
+
+
 def volume(mesh: bpy.types.Mesh) -> float:
     bm = bmesh.new()
     bm.from_mesh(mesh)

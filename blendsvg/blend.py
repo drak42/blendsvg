@@ -66,7 +66,22 @@ def _sample_points(layers: list[bpy.types.Object], target: int, rng: random.Rand
 
 
 def _wall_at(bvh, start: Vector, ray: Vector, reach: float):
-    """Entry point along a ray and the wall thickness behind it (None if no back wall)."""
+    """Entry point along a ray and the wall thickness behind it (None if no back wall).
+
+    A ray that runs exactly through an edge can slip between the two faces (common on
+    symmetric CAD meshes, where an edge faces an edge), so a miss is retried a hair aside.
+    """
+    loc, t = _wall_once(bvh, start, ray, reach)
+    if t is None:
+        side = ray.orthogonal().normalized() * 1e-3
+        for nudge in (side, -side, ray.cross(side)):
+            loc2, t2 = _wall_once(bvh, start + nudge, ray, reach)
+            if t2 is not None:
+                return loc2, t2
+    return loc, t
+
+
+def _wall_once(bvh, start: Vector, ray: Vector, reach: float):
     loc, _, _, _ = bvh.ray_cast(start, ray, reach)
     if loc is None:
         return None, None
@@ -374,6 +389,7 @@ def blend(
 
         def publish(obj: bpy.types.Object, name: str, part: str) -> None:
             scratch.keep(obj)
+            meshops.tidy(obj.data)
             obj.name = obj.data.name = name
             obj[PART_KEY] = part
             out.objects.link(obj)
