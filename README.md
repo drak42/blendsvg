@@ -142,8 +142,33 @@ Two more free tools from the same author:
   OrcaSlicer presets, one filament per part, and sends it to a Klipper or OctoPrint printer
   (see [Command line](#command-line) above). `pipx install batchslicer`.
 
-Together: join a model with stljoiner, add your logo with BlendSVG, then slice it and send it to
-the printer with BatchSlicer.
+### How they fit together
+
+The three cover one path, from a model to G-code on the printer. Each works on
+its own; use the steps you need.
+
+```
+ a model in pieces        your own artwork             the printer
+        │                       │                           ▲
+   stljoiner  ─────────►   BlendSVG   ─────────►   BatchSlicer
+ rejoin split parts      flush colour inlays     slice with your presets,
+ into one solid          from an SVG, as a       match the CFS, send to
+ (or separate parts      multi-part 3MF          Klipper or OctoPrint,
+  for multi-colour)                              watch folder, web page
+```
+
+- **stljoiner → BlendSVG**: a model cut to fit the bed, or downloaded in
+  pieces, is joined into one watertight solid (STL), ready to decorate.
+- **BlendSVG → BatchSlicer**: BlendSVG's 3MF has the model on filament 1 and
+  each colour of the artwork on filaments 2, 3, …; BatchSlicer slices it with
+  one `--filament` per part, in that order, and sends it to the printer
+  (tested with OrcaSlicer; Bambu Studio's command line puts every part on the
+  first filament).
+- **stljoiner → BatchSlicer**: a kit that came in pieces is joined and
+  sliced; drop the joined file into BatchSlicer's watch folder, or its web
+  page, to have it sliced and sent. With `--no-union`, stljoiner keeps the
+  pieces as separate objects in a 3MF, to give each its own colour in the
+  slicer.
 
 ## Support
 
