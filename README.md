@@ -131,6 +131,20 @@ Bug reports and pull requests are welcome. Please include the model and SVG (or 
 example that shows the problem) and your Blender version. Run the tests and ruff before
 opening a pull request (see Development above).
 
+## Companion projects
+
+Two more free tools from the same author:
+
+- **[stljoiner](https://github.com/drak42/stljoiner)** puts split parts back together into one
+  watertight solid by matching the cut faces: handy before decorating a model that was cut to
+  fit the bed or downloaded in pieces. `pipx install stljoiner`.
+- **[BatchSlicer](https://github.com/drak42/batch_slicer)** slices BlendSVG's 3MF with your own
+  OrcaSlicer presets, one filament per part, and sends it to a Klipper or OctoPrint printer
+  (see [Command line](#command-line) above). `pipx install batchslicer`.
+
+Together: join a model with stljoiner, add your logo with BlendSVG, then slice it and send it to
+the printer with BatchSlicer.
+
 ## Support
 
 BlendSVG is free and open source. If it makes your prints better, you can
