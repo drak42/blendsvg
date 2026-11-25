@@ -1,5 +1,6 @@
 # blendsvg
 
+[![Downloads](https://img.shields.io/github/downloads/drak42/blendsvg/total?label=downloads&labelColor=black&color=green)](https://github.com/drak42/blendsvg/releases)
 [![CI](https://github.com/drak42/blendsvg/actions/workflows/ci.yml/badge.svg)](https://github.com/drak42/blendsvg/actions/workflows/ci.yml)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/drak42)
 
