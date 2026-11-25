@@ -7,7 +7,7 @@ tagline = "Inlay SVG artwork flush into a mesh for multi-color printing"
 maintainer = "drak42"
 type = "add-on"
 website = "https://github.com/drak42/blendsvg"
-tags = ["Import-Export", "Mesh", "3D View"]
+tags = ["Import-Export", "Mesh"]
 
 # Needs the Manifold boolean solver (Blender 4.5+).
 blender_version_min = "4.5.0"
