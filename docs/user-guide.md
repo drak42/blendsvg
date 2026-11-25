@@ -34,12 +34,18 @@ Shapes painted on top hide the shapes underneath, exactly as the SVG looks on sc
 
 ## 2. Install the add-on
 
-1. Download `blendsvg-<version>.zip` from the
-   [latest release](https://github.com/drak42/blendsvg/releases/latest). Don't unzip it.
-2. In Blender go to *Edit › Preferences › Get Extensions*, open the **⌄** menu in the top
-   right, and choose **Install from Disk…**. Pick the zip.
+1. In Blender go to *Edit › Preferences › Get Extensions*. If online access is off, click
+   **Allow Online Access** first.
+2. Search for **BlendSVG** and click **Install**. (It's the
+   [listing on extensions.blender.org](https://extensions.blender.org/add-ons/blendsvg/).)
+   Blender tells you when an update is available.
 3. Close Preferences. In the 3D viewport press **N** to open the sidebar and click the
    **BlendSVG** tab.
+
+No internet on that computer? Download `blendsvg-<version>.zip` from the
+[GitHub releases](https://github.com/drak42/blendsvg/releases) (don't unzip it), then in
+*Get Extensions* open the **⌄** menu in the top right, choose **Install from Disk…** and pick
+the zip.
 
 ---
 

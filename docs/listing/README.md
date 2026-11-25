@@ -1,7 +1,9 @@
 # Blender Extensions listing
 
-Everything needed to submit BlendSVG to [extensions.blender.org](https://extensions.blender.org/submit/).
-These files are not part of the extension zip.
+BlendSVG is approved and listed at <https://extensions.blender.org/add-ons/blendsvg/>.
+This folder keeps the listing's media and description; these files are not part of the
+extension zip. To publish a new version, upload its zip from the listing on the platform;
+the version number comes from the manifest.
 
 | File | Use |
 |---|---|

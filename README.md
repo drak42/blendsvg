@@ -1,6 +1,7 @@
 # blendsvg
 
 [![Downloads](https://img.shields.io/github/downloads/drak42/blendsvg/total?label=downloads&labelColor=black&color=green)](https://github.com/drak42/blendsvg/releases)
+[![Blender Extensions](https://img.shields.io/badge/Blender%20Extensions-BlendSVG-E87D0D?logo=blender&logoColor=white)](https://extensions.blender.org/add-ons/blendsvg/)
 [![CI](https://github.com/drak42/blendsvg/actions/workflows/ci.yml/badge.svg)](https://github.com/drak42/blendsvg/actions/workflows/ci.yml)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/drak42)
 
@@ -83,9 +84,14 @@ filament per part, the base first (see its
 
 ## Blender add-on
 
-Install: download `blendsvg-<version>.zip` from the
-[latest release](https://github.com/drak42/blendsvg/releases/latest), then in Blender go to
-*Edit › Preferences › Get Extensions › Install from Disk…* and pick the zip. To build it
+Install: BlendSVG is on the official
+[Blender Extensions platform](https://extensions.blender.org/add-ons/blendsvg/). In Blender go to
+*Edit › Preferences › Get Extensions*, search for **BlendSVG** and click **Install**. Updates
+then arrive through Blender.
+
+Offline, or to try a specific version: download `blendsvg-<version>.zip` from the
+[releases](https://github.com/drak42/blendsvg/releases), then use
+*Get Extensions › Install from Disk…* and pick the zip. To build it
 yourself: `blender --command extension build --source-dir blendsvg --output-dir dist`. To develop, symlink the `blendsvg/` folder into your extensions
 `user_default` directory instead.
 
